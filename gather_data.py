@@ -298,3 +298,109 @@ def parse_omdb_entry(raw_json):
         "movie_count": imdb_votes_val
     }
     return result
+
+def insert_adaptation(conn, book_data, movie_data):
+    """
+    Insert one book+movie pair into:
+    - Books
+    - Movies
+    - Book_Movie  (link table using integer keys)
+    """
+    cur = conn.cursor()
+
+    # Insert or ignore the book
+    cur.execute("""
+        INSERT OR IGNORE INTO Books (book_title, authors, book_rating, ratings_count)
+        VALUES (?, ?, ?, ?)
+    """, (
+        book_data.get("book_title"),
+        book_data.get("authors"),
+        book_data.get("book_rating"),
+        book_data.get("ratings_count")
+    ))
+
+    # Get book_id
+    cur.execute("SELECT book_id FROM Books WHERE book_title = ?", (book_data.get("book_title"),))
+    row = cur.fetchone()
+    if row is None:
+        return
+    book_id = row[0]
+
+    # Insert or ignore the movie
+    cur.execute("""
+        INSERT OR IGNORE INTO Movies (movie_title, movie_rating, movie_count)
+        VALUES (?, ?, ?)
+    """, (
+        movie_data.get("movie_title"),
+        movie_data.get("movie_rating"),
+        movie_data.get("movie_count")
+    ))
+
+    # Get movie_id
+    cur.execute("SELECT movie_id FROM Movies WHERE movie_title = ?", (movie_data.get("movie_title"),))
+    row = cur.fetchone()
+    if row is None:
+        return
+    movie_id = row[0]
+
+    # Insert into join table
+    cur.execute("""
+        INSERT OR IGNORE INTO Book_Movie (book_id, movie_id)
+        VALUES (?, ?)
+    """, (book_id, movie_id))
+
+    conn.commit()
+
+
+def load_batch(conn, max_new=25):
+    """
+    Load up to max_new NEW adaptations in one run.
+    This enforces the 25-items-per-run rule from the project spec.
+    """
+    # Grab more than max_new candidate titles so if some fails
+    candidate_titles = get_pending_titles(conn, max_new * 2)
+
+    inserted = 0
+    for scraped_title in candidate_titles:
+        if inserted >= max_new:
+            break
+
+        print(f"Processing '{scraped_title}'...")
+
+        # Google Books
+        gb_raw = fetch_google_books_raw(scraped_title)
+        gb_data = parse_google_books_entry(gb_raw)
+        if gb_data is None:
+            print("  Skipping: no valid Google Books data.")
+            continue
+
+        # Override title to keep consistent with scraped Goodreads title
+        gb_data["book_title"] = scraped_title
+
+        # OMDb
+        omdb_raw = fetch_omdb_raw(scraped_title)
+        omdb_data = parse_omdb_entry(omdb_raw)
+        if omdb_data is None:
+            print("  Skipping: no valid OMDb data.")
+            continue
+
+        insert_adaptation(conn, gb_data, omdb_data)
+        inserted = inserted + 1
+        print(f"  Inserted adaptation #{inserted} this run.")
+
+    print(f"Finished batch: {inserted} new adaptations inserted (max {max_new}).")
+
+
+def main():
+    conn = create_connection()
+    create_tables(conn)
+
+    scrape_adaptations_if_needed(conn, min_count=100)
+
+    load_batch(conn, max_new=25)
+
+    conn.close()
+
+
+if __name__ == "__main__":
+    main()
