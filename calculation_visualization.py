@@ -40,10 +40,10 @@ def fetch_joined_data(conn):
         data.append({
             "book_title": book_title,
             "book_rating": book_rating,
-            "book_ratings_count": book_ratings_count,
+            "book_count": book_ratings_count,
             "movie_title": movie_title,
             "movie_rating": movie_rating,
-            "movie_votes": movie_votes
+            "movie_count": movie_votes
         })
 
     return data
