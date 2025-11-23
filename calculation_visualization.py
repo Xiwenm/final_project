@@ -182,6 +182,34 @@ def plot_scatter_book_vs_movie_ratings(x, y, r=None, p=None, reg=None):
     plt.tight_layout()
     return fig
 
+def plot_hexbin_book_vs_movie_ratings(x, y):
+    """
+    Hexbin plot for book vs movie ratings.
+    Shows density of overlapping points.
+    """
+    x_arr = np.array(x, dtype=float)
+    y_arr = np.array(y, dtype=float)
+
+    fig, ax = plt.subplots()
+
+    hb = ax.hexbin(
+        x_arr,
+        y_arr,
+        gridsize=20,      
+        cmap='Blues',     
+        mincnt=1,         
+        linewidths=0.2
+    )
+
+    cb = fig.colorbar(hb, ax=ax)
+    cb.set_label('Count')
+
+    ax.set_xlabel("Book average rating (1–5)")
+    ax.set_ylabel("Movie IMDb rating (scaled to 1–5)")
+    ax.set_title("Book Ratings vs Movie Ratings (Hexbin Density)")
+
+    plt.tight_layout()
+    return fig
 
 def write_summary_file(
     filename: str,
@@ -259,6 +287,10 @@ def main():
     pie_fig = preference_visualization(preference_pct)
     pie_fig.savefig("preference_pie_chart.png")
     print("Saved preference pie: preference_pie_chart.png")
+
+    hex_fig = plot_hexbin_book_vs_movie_ratings(x_values, y_values)
+    hex_fig.savefig("hexbin_plot.png")
+    print("Saved hexbin plot: hexbin_plot.png")
 
     conn.close()
 
