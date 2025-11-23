@@ -130,7 +130,7 @@ def plot_stacked_bar_ratings(data):
             book_ratings.append(b)
             movie_ratings.append(m5)
 
-    bins = [1, 2, 3, 4, 5]
+    bins = [1, 2, 3, 4, 5, 6]
     labels = ["1-2", "2-3", "3-4", "4-5", "5"]
 
     book_counts, _ = np.histogram(book_ratings, bins=bins)
@@ -145,7 +145,7 @@ def plot_stacked_bar_ratings(data):
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
-    ax.set_xlabel("Rating Range (1–5)")
+    ax.set_xlabel("Rating Range (1-5)")
     ax.set_ylabel("Number of Titles")
     ax.set_title("Stacked Bar Chart of Book vs Movie Ratings")
     ax.legend()
