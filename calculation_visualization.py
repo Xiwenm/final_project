@@ -112,43 +112,36 @@ def preference_visualization(preference_pct):
     plt.tight_layout()
     return fig 
 
-def plot_stacked_bar_ratings(data):
+def plot_normalized_stacked_preference(preference_pct):
     """
-    Create a stacked bar chart comparing the frequency of
-    book ratings and movie ratings across rating bins.
+    Normalized (100%) stacked bar chart using the already computed
+    preference percentages:
+    - books preferred
+    - movies preferred
+    - ties
     """
 
-    book_ratings = []
-    movie_ratings = []
+    books_pct, movies_pct, ties_pct = preference_pct
 
-    for row in data:
-        b = row.get("book_rating")
-        m10 = row.get("movie_rating")
-        m5 = m10 / 2 if m10 is not None else None  
+    categories = ["Preference Outcome"]
+    x = np.arange(len(categories))
 
-        if b is not None and m5 is not None:
-            book_ratings.append(b)
-            movie_ratings.append(m5)
+    fig, ax = plt.subplots(figsize=(6, 6))
 
-    bins = [1, 2, 3, 4, 5, 6]
-    labels = ["1-2", "2-3", "3-4", "4-5", "5"]
+    ax.bar(x, movies_pct, label="Movies preferred", color="steelblue")
+    ax.bar(x, books_pct, bottom=movies_pct, label="Books preferred", color="skyblue")
+    ax.bar(x, ties_pct, bottom=movies_pct + books_pct, label="Ties", color="orange")
 
-    book_counts, _ = np.histogram(book_ratings, bins=bins)
-    movie_counts, _ = np.histogram(movie_ratings, bins=bins)
-
-    x = np.arange(len(labels)) 
-
-    fig, ax = plt.subplots()
-
-    ax.bar(x, book_counts, label="Books", color="skyblue")
-    ax.bar(x, movie_counts, bottom=book_counts, label="Movies", color="steelblue")
-
+    ax.set_ylim(0, 1)
+    ax.set_ylabel("Percentage")
+    ax.set_title("100% Stacked Bar Chart: Books vs Movies Preference")
     ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.set_xlabel("Rating Range (1-5)")
-    ax.set_ylabel("Number of Titles")
-    ax.set_title("Stacked Bar Chart of Book vs Movie Ratings")
+    ax.set_xticklabels(categories)
     ax.legend()
+
+    ax.text(0, movies_pct / 2, f"{movies_pct*100:.1f}%", ha="center", va="center")
+    ax.text(0, movies_pct + books_pct / 2, f"{books_pct*100:.1f}%", ha="center", va="center")
+    ax.text(0, movies_pct + books_pct + ties_pct / 2, f"{ties_pct*100:.1f}%", ha="center", va="center")
 
     plt.tight_layout()
     return fig
@@ -330,10 +323,9 @@ def main():
     pie_fig.savefig("preference_pie_chart.png")
     print("Saved preference pie: preference_pie_chart.png")
 
-    stacked_fig = plot_stacked_bar_ratings(filtered_data)
-    stacked_fig.savefig("stacked_bar_ratings.png")
-    print("Saved stacked bar chart: stacked_bar_ratings.png")
-
+    stacked_pref_fig = plot_normalized_stacked_preference(preference_pct)
+    stacked_pref_fig.savefig("stacked_preference_chart.png")
+    print("Saved chart: stacked_preference_chart.png")
 
     hex_fig = plot_hexbin_book_vs_movie_ratings(x_values, y_values)
     hex_fig.savefig("hexbin_plot.png")
