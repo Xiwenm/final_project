@@ -240,3 +240,61 @@ def parse_google_books_entry(raw_json):
         "ratings_count": ratings_count
     }
     return result
+
+
+def fetch_omdb_raw(title):
+    """
+    Call OMDb API and return raw JSON (as Python dict via json.loads).
+    """
+    if OMDB_API_KEY == "YOUR_OMDB_API_KEY_HERE":
+        print("Set OMDB_API_KEY in gather_data.py before running OMDb requests.")
+        return None
+
+    params = {
+        "t": title,
+        "apikey": OMDB_API_KEY
+    }
+    try:
+        resp = requests.get(OMDB_URL, params=params, timeout=30)
+        resp.raise_for_status()
+        data = json.loads(resp.text)
+        return data
+    except (requests.RequestException, json.JSONDecodeError) as e:
+        print(f"OMDb request failed for '{title}': {e}")
+        return None
+
+
+def parse_omdb_entry(raw_json):
+    """
+    Extract [movie_title, movie_rating, movie_count] from OMDb JSON.
+    """
+    if raw_json is None:
+        return None
+    if raw_json.get("Response") != "True":
+        return None
+
+    title = raw_json.get("Title")
+
+    imdb_rating_val = None
+    imdb_rating_str = raw_json.get("imdbRating")
+    if imdb_rating_str and imdb_rating_str != "N/A":
+        try:
+            imdb_rating_val = float(imdb_rating_str)
+        except ValueError:
+            imdb_rating_val = None
+
+    imdb_votes_val = None
+    votes_str = raw_json.get("imdbVotes")
+    if votes_str and votes_str != "N/A":
+        try:
+            cleaned = votes_str.replace(",", "")
+            imdb_votes_val = int(cleaned)
+        except ValueError:
+            imdb_votes_val = None
+
+    result = {
+        "movie_title": title,
+        "movie_rating": imdb_rating_val,
+        "movie_count": imdb_votes_val
+    }
+    return result
