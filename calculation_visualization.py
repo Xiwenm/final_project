@@ -40,7 +40,7 @@ def fetch_joined_data(conn):
 
     return data
 
-def filter_data(data, min_book_count=10, min_movie_count=10):
+def filter_data(data, min_book_count=0, min_movie_count=0):
     filtered = []
     for row in data:
         brc = row["book_count"]
@@ -112,7 +112,49 @@ def preference_visualization(preference_pct):
     plt.tight_layout()
     return fig 
 
-def question2_prepare_correlation_data(data):
+def plot_stacked_bar_ratings(data):
+    """
+    Create a stacked bar chart comparing the frequency of
+    book ratings and movie ratings across rating bins.
+    """
+
+    book_ratings = []
+    movie_ratings = []
+
+    for row in data:
+        b = row.get("book_rating")
+        m10 = row.get("movie_rating")
+        m5 = m10 / 2 if m10 is not None else None  
+
+        if b is not None and m5 is not None:
+            book_ratings.append(b)
+            movie_ratings.append(m5)
+
+    bins = [1, 2, 3, 4, 5]
+    labels = ["1-2", "2-3", "3-4", "4-5", "5"]
+
+    book_counts, _ = np.histogram(book_ratings, bins=bins)
+    movie_counts, _ = np.histogram(movie_ratings, bins=bins)
+
+    x = np.arange(len(labels)) 
+
+    fig, ax = plt.subplots()
+
+    ax.bar(x, book_counts, label="Books", color="skyblue")
+    ax.bar(x, movie_counts, bottom=book_counts, label="Movies", color="steelblue")
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set_xlabel("Rating Range (1–5)")
+    ax.set_ylabel("Number of Titles")
+    ax.set_title("Stacked Bar Chart of Book vs Movie Ratings")
+    ax.legend()
+
+    plt.tight_layout()
+    return fig
+
+
+def prepare_correlation_data(data):
     x_values = []
     y_values = []
 
@@ -287,6 +329,11 @@ def main():
     pie_fig = preference_visualization(preference_pct)
     pie_fig.savefig("preference_pie_chart.png")
     print("Saved preference pie: preference_pie_chart.png")
+
+    stacked_fig = plot_stacked_bar_ratings(filtered_data)
+    stacked_fig.savefig("stacked_bar_ratings.png")
+    print("Saved stacked bar chart: stacked_bar_ratings.png")
+
 
     hex_fig = plot_hexbin_book_vs_movie_ratings(x_values, y_values)
     hex_fig.savefig("hexbin_plot.png")
