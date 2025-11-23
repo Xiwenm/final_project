@@ -303,7 +303,7 @@ def main():
     preference_pct = prefence_percentage(preference_counts)
 
     # Question 2
-    x_values, y_values = question2_prepare_correlation_data(filtered_data)
+    x_values, y_values = prepare_correlation_data(filtered_data)
     correlation_result = pearson_correlation(x_values, y_values)
     regression_result = linear_regression(x_values, y_values)
 
