@@ -66,3 +66,21 @@ def create_tables(conn: sqlite3.Connection):
     """)
 
     conn.commit()
+
+def clean_goodreads_title(raw_title: str) -> str:
+    """
+    Clean Goodreads list titles like:
+      'The Hunger Games (The Hunger Games, #1)'
+    into:
+      'The Hunger Games'
+
+    Strategy:
+    - If there is a trailing parenthesis that contains '#', strip it.
+    - Strip extra whitespace.
+    """
+    title = raw_title
+
+    match = re.match(r"^(.*?)(\s*\(.*?#\d+.*\))$", title)
+    if match:
+        title = match.group(1)
+    return title.strip()
