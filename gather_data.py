@@ -6,7 +6,7 @@ import bs4
 
 GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
 OMDB_URL = "https://www.omdbapi.com/"
-OMDB_API_KEY = ""
+OMDB_API_KEY = "51aef340"
 DB_NAME = "final_project.db"
 
 
@@ -66,6 +66,14 @@ def create_tables(conn):
         )
     """)
 
+    #Failed Titles
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS FailedTitles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT UNIQUE
+        )
+    """)
+
     conn.commit()
 
 def clean_goodreads_title(raw_title):
@@ -86,7 +94,7 @@ def clean_goodreads_title(raw_title):
         title = match.group(1)
     return title.strip()
 
-def scrape_adaptations_if_needed(conn, min_count=100):
+def scrape_adaptations_if_needed(conn, min_count=300):
     """
     Scrape Goodreads list:
     https://www.goodreads.com/list/show/87198.Books_Made_into_Movies_or_TV_Shows
@@ -172,17 +180,21 @@ def scrape_adaptations_if_needed(conn, min_count=100):
 
 def get_pending_titles(conn, limit):
     """
-    Return up to `limit` titles from Adaptations that do NOT yet appear
-    in either Books OR Movies.
+    Return up to `limit` titles from Adaptations that:
+      - are NOT already in Books
+      - are NOT already in Movies
+      - are NOT marked as failed
     """
     cur = conn.cursor()
     cur.execute("""
         SELECT A.title
         FROM Adaptations AS A
-        LEFT JOIN Books  AS B ON A.title = B.book_title
-        LEFT JOIN Movies AS M ON A.title = M.movie_title
+        LEFT JOIN Books        AS B ON A.title = B.book_title
+        LEFT JOIN Movies       AS M ON A.title = M.movie_title
+        LEFT JOIN FailedTitles AS F ON A.title = F.title
         WHERE B.book_title IS NULL
           AND M.movie_title IS NULL
+          AND F.title IS NULL
         LIMIT ?
     """, (limit,))
     rows = cur.fetchall()
@@ -191,6 +203,7 @@ def get_pending_titles(conn, limit):
     for row in rows:
         titles.append(row[0])
     return titles
+
 
 def fetch_google_books_raw(title):
     """
@@ -372,6 +385,10 @@ def load_batch(conn, max_new=25):
         gb_data = parse_google_books_entry(gb_raw)
         if gb_data is None:
             print("  Skipping: no valid Google Books data.")
+            cur = conn.cursor()
+            cur.execute("INSERT OR IGNORE INTO FailedTitles (title) VALUES (?)",
+                        (scraped_title,))
+            conn.commit()
             continue
 
         # Override title to keep consistent with scraped Goodreads title
@@ -382,7 +399,12 @@ def load_batch(conn, max_new=25):
         omdb_data = parse_omdb_entry(omdb_raw)
         if omdb_data is None:
             print("  Skipping: no valid OMDb data.")
+            cur = conn.cursor()
+            cur.execute("INSERT OR IGNORE INTO FailedTitles (title) VALUES (?)",
+                        (scraped_title,))
+            conn.commit()
             continue
+
 
         insert_adaptation(conn, gb_data, omdb_data)
         inserted = inserted + 1
@@ -395,7 +417,7 @@ def main():
     conn = create_connection()
     create_tables(conn)
 
-    scrape_adaptations_if_needed(conn, min_count=100)
+    scrape_adaptations_if_needed(conn, min_count=300)
 
     load_batch(conn, max_new=25)
 
