@@ -2,6 +2,8 @@ import sqlite3
 from scipy.stats import pearsonr, linregress
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+
 
 DB_NAME = "final_project.db"
 
@@ -69,8 +71,8 @@ def compute_preference_counts(data):
     total = 0
 
     for row in data:
-        book_rating = row.get("book_rating")        # FIXED
-        movie_rating_10 = row.get("movie_rating")   # FIXED
+        book_rating = row.get("book_rating")        
+        movie_rating_10 = row.get("movie_rating")  
         movie_rating_5 = convert_movie_rating(movie_rating_10)
 
         if book_rating is None or movie_rating_5 is None:
@@ -104,6 +106,8 @@ def preference_pie (preference_pct):
         preference_pct[0],   # books
         preference_pct[2]    # ties
     ]
+    cmap = cm.get_cmap("Blues")
+    colors = [cmap(0.4), cmap(0.6), cmap(0.8)] 
 
     fig, ax = plt.subplots()
     ax.pie(
@@ -111,7 +115,7 @@ def preference_pie (preference_pct):
         labels=labels,
         autopct="%1.1f%%",
         startangle=90,
-        colors=["blue"] * len(sizes)   # all-blue slices
+        colors=colors
     )
     ax.axis("equal")
     ax.set_title("Preference: Adapted Movies vs Original Books")
@@ -120,7 +124,7 @@ def preference_pie (preference_pct):
 
 def preference_bar(preference_pct):
     """
-    Create a bar chart comparing the prefered percentage.
+    Create a bar chart comparing preference percentages (matching hexbin color theme).
     """
     labels = ["Movies preferred", "Books preferred", "Ties"]
     sizes = [
@@ -129,14 +133,29 @@ def preference_bar(preference_pct):
         preference_pct[2]    # ties
     ]
 
+    cmap = cm.get_cmap("Blues")
+    colors = [cmap(0.4), cmap(0.6), cmap(0.8)]
+
     fig, ax = plt.subplots()
 
-    ax.bar(labels, sizes, autopct="%1.1f%%", colors=["blue"] * len(sizes))
+    bars = ax.bar(labels, sizes, color=colors)
+
+    for bar, value in zip(bars, sizes):
+        ax.text(
+            bar.get_x() + bar.get_width()/2,
+            bar.get_height(),
+            f"{value:.1f}%",
+            ha="center",
+            va="bottom",
+            fontsize=10
+        )
+
     ax.set_ylabel("Percentage (%)")
     ax.set_title("Preference: Adapted Movies vs Original Books")
 
     plt.tight_layout()
     return fig
+
 
 def prepare_correlation_data(data):
     x_values = []
