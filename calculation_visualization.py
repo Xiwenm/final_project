@@ -23,25 +23,25 @@ def fetch_joined_data(conn):
             M.movie_rating,
             M.movie_count
         FROM Titles AS T
-        JOIN Books  AS B ON T.title_id  = T.title_id
-        JOIN Movies AS M ON T.title_id = T.title_id
-        WHERE B.book_rating is not NULL
-        AND M.movie_rating is not NULL
-                
+        JOIN Books  AS B ON T.title_id = B.title_id
+        JOIN Movies AS M ON T.title_id = M.title_id
+        WHERE B.book_rating IS NOT NULL
+          AND M.movie_rating IS NOT NULL
     """)
     rows = cur.fetchall()
 
     data = []
     for row in rows:
         data.append({
-            "title": row[0],
-            "book_rating": row[1],    
-            "book_count": row[2],
-            "movie_rating": row[3],     
-            "movie_count": row[4]
+            "title":        row[0],
+            "book_rating":  row[1],
+            "book_count":   row[2],
+            "movie_rating": row[3],
+            "movie_count":  row[4],
         })
 
     return data
+
 
 def filter_data(data, min_book_count=0, min_movie_count=0):
     filtered = []
@@ -100,15 +100,15 @@ def prefence_percentage(preferece_counts):
     ties_pct = ties / total
     return books_better_pct, movies_better_pct, ties_pct
 
-def preference_pie (preference_pct):
+def preference_pie(preference_pct):
     labels = ["Movies preferred", "Books preferred", "Ties"]
     sizes = [
         preference_pct[1],   # movies
         preference_pct[0],   # books
         preference_pct[2]    # ties
     ]
-    cmap = cm.get_cmap("Blues")
-    colors = [cmap(0.4), cmap(0.6), cmap(0.8)] 
+
+    colors = ["#9ecae1", "#4292c6", "#084594"]
 
     fig, ax = plt.subplots()
     ax.pie(
@@ -123,29 +123,29 @@ def preference_pie (preference_pct):
     plt.tight_layout()
     return fig
 
+
 def preference_bar(preference_pct):
     """
-    Create a bar chart comparing preference percentages (matching hexbin color theme).
+    Create a bar chart comparing preference percentages.
     """
     labels = ["Movies preferred", "Books preferred", "Ties"]
-    sizes = [
-        preference_pct[1],   # movies
-        preference_pct[0],   # books
-        preference_pct[2]    # ties
+    sizes_pct = [
+        preference_pct[1] * 100,   # movies
+        preference_pct[0] * 100,   # books
+        preference_pct[2] * 100    # ties
     ]
 
-    cmap = cm.get_cmap("Blues")
-    colors = [cmap(0.4), cmap(0.6), cmap(0.8)]
+    colors = ["#9ecae1", "#4292c6", "#084594"]
 
     fig, ax = plt.subplots()
 
-    bars = ax.bar(labels, sizes, color=colors)
+    bars = ax.bar(labels, sizes_pct, color=colors)
 
-    for bar, value in zip(bars, sizes):
+    for bar, value in zip(bars, sizes_pct):
         ax.text(
-            bar.get_x() + bar.get_width()/2,
+            bar.get_x() + bar.get_width() / 2,
             bar.get_height(),
-            f"{value:.1f}%",
+            f"{value:.1f}%",    
             ha="center",
             va="bottom",
             fontsize=10
@@ -156,6 +156,7 @@ def preference_bar(preference_pct):
 
     plt.tight_layout()
     return fig
+
 
 
 def prepare_correlation_data(data):
@@ -324,9 +325,10 @@ def main():
     pie_fig.savefig("preference_pie_chart.png")
     print("Saved preference pie: preference_pie_chart.png")
 
-    stacked_pref_fig = preference_bar(filtered_data)
-    stacked_pref_fig.savefig("stacked_preference_chart.png")
+    bar_fig = preference_bar(preference_pct)
+    bar_fig.savefig("preference_barchart.png")
     print("Saved chart: stacked_preference_chart.png")
+
 
     fig = correlation_scatter(
             x_values,
