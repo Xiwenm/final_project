@@ -89,7 +89,7 @@ def compute_preference_counts(data):
 
     return books_better, movies_better, ties, total
 
-def prefence_percentage(preferece_counts):
+def preference_percentage(preferece_counts):
     books_better, movies_better, ties, total = preferece_counts
 
     if total == 0:
