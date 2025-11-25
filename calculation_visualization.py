@@ -118,7 +118,7 @@ def preference_pie (preference_pct):
     plt.tight_layout()
     return fig
 
-def plot_bar_preference(preference_pct):
+def preference_bar(preference_pct):
     """
     Create a bar chart comparing the prefered percentage.
     """
@@ -137,8 +137,6 @@ def plot_bar_preference(preference_pct):
 
     plt.tight_layout()
     return fig
-
-
 
 def prepare_correlation_data(data):
     x_values = []
@@ -302,25 +300,25 @@ def main():
     )
     print("Saved summary: analysis_summary.txt")
 
-    fig = plot_scatter_book_vs_movie_ratings(
-        x_values,
-        y_values,
-        r=correlation_result[0] if correlation_result else None,
-        p=correlation_result[1] if correlation_result else None,
-        reg=regression_result
-    )
-    fig.savefig("scatter_plot.png")
-    print("Saved scatter plot: scatter_plot.png")
-
-    pie_fig = preference_visualization(preference_pct)
+    pie_fig = preference_pie(preference_pct)
     pie_fig.savefig("preference_pie_chart.png")
     print("Saved preference pie: preference_pie_chart.png")
 
-    stacked_pref_fig = plot_normalized_stacked_preference(filtered_data)
+    stacked_pref_fig = preference_bar(filtered_data)
     stacked_pref_fig.savefig("stacked_preference_chart.png")
     print("Saved chart: stacked_preference_chart.png")
 
-    hex_fig = plot_hexbin_book_vs_movie_ratings(x_values, y_values)
+    fig = correlation_scatter(
+            x_values,
+            y_values,
+            r=correlation_result[0] if correlation_result else None,
+            p=correlation_result[1] if correlation_result else None,
+            reg=regression_result
+        )
+    fig.savefig("scatter_plot.png")
+    print("Saved scatter plot: scatter_plot.png")
+
+    hex_fig = correlation_hexbin(x_values, y_values)
     hex_fig.savefig("hexbin_plot.png")
     print("Saved hexbin plot: hexbin_plot.png")
 
