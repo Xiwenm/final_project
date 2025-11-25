@@ -305,7 +305,7 @@ def main():
 
     # Question 1
     preference_counts = compute_preference_counts(filtered_data)
-    preference_pct = prefence_percentage(preference_counts)
+    preference_pct = preference_percentage(preference_counts)
 
     # Question 2
     x_values, y_values = prepare_correlation_data(filtered_data)
