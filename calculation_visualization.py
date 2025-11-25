@@ -10,32 +10,33 @@ def create_connection():
 
 def fetch_joined_data(conn):
     """
-    Get joined rows: one per book–movie pair.
+    Get joined rows: one per book-movie pair.
     """
     cur = conn.cursor()
     cur.execute("""
         SELECT
-            B.book_title,
+            T.title,
             B.book_rating,
             B.ratings_count,
-            M.movie_title,
             M.movie_rating,
             M.movie_count
-        FROM Book_Movie AS BM
-        JOIN Books  AS B ON BM.book_id  = B.book_id
-        JOIN Movies AS M ON BM.movie_id = M.movie_id
+        FROM Titles AS T
+        JOIN Books  AS B ON T.title_id  = T.title_id
+        JOIN Movies AS M ON T.title_id = T.title_id
+        WHERE B.book_rating is not NULL
+        AND M.movie_rating is not NULL
+                
     """)
     rows = cur.fetchall()
 
     data = []
     for row in rows:
         data.append({
-            "book_title": row[0],
+            "title": row[0],
             "book_rating": row[1],    
             "book_count": row[2],
-            "movie_title": row[3],
-            "movie_rating": row[4],     
-            "movie_count": row[5]
+            "movie_rating": row[3],     
+            "movie_count": row[4]
         })
 
     return data
@@ -56,7 +57,7 @@ def filter_data(data, min_book_count=0, min_movie_count=0):
 
 
 def convert_movie_rating(movie_rating_10):
-    """Convert IMDb rating 1–10 to 1–5."""
+    """Convert IMDb rating 1-10 to 1-5."""
     if movie_rating_10 is None:
         return None
     return movie_rating_10 / 2.0

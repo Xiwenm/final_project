@@ -1,23 +1,23 @@
 === Analysis Summary ===
 
 Book vs Movie Preference (Question 1):
-  Total comparisons: 86
-  Books preferred:  73
-  Movies preferred: 12
-  Ties:             1
+  Total comparisons: 7669948
+  Books preferred:  6428500
+  Movies preferred: 1151449
+  Ties:             89999
 
 Preference Percentages:
-  Books better %:   0.849
-  Movies better %:  0.140
+  Books better %:   0.838
+  Movies better %:  0.150
   Ties %:           0.012
 
 Correlation (Question 2):
-  Pearson r: 0.1081
-  p-value:   0.321862
+  Pearson r: 0.0000
+  p-value:   1.000000
 
 Regression (Question 2):
-  Slope:      0.0802
-  Intercept:  3.0642
-  r-value:    0.1081
-  p-value:    0.321862
-  std error:  0.080491
+  Slope:      0.0000
+  Intercept:  3.4740
+  r-value:    0.0000
+  p-value:    1.000000
+  std error:  0.000275
