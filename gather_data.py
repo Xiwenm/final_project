@@ -6,7 +6,7 @@ import bs4
 
 GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
 OMDB_URL = "https://www.omdbapi.com/"
-OMDB_API_KEY = "51aef340"  # TODO: put your OMDb API key here
+OMDB_API_KEY = "d4a57588"  # TODO: put your OMDb API key here
 DB_NAME = "final_project.db"
 minimumcount = 300  # how many titles to scrape from Goodreads
 
@@ -304,8 +304,7 @@ def load_batch(conn, max_new=25):
     Load up to max_new NEW adaptations in one run.
     This enforces the 25-items-per-run rule from the project spec.
     """
-    # Grab more than max_new candidate titles so if some fail, we still can hit max_new
-    candidate_rows = get_pending_titles(conn, max_new * 2)
+    candidate_rows = get_pending_titles(conn, max_new)
 
     inserted = 0
     for title_id, title in candidate_rows:
