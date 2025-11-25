@@ -97,7 +97,7 @@ def prefence_percentage(preferece_counts):
     ties_pct = ties / total
     return books_better_pct, movies_better_pct, ties_pct
 
-def preference_visualization(preference_pct):
+def preference_pie (preference_pct):
     labels = ["Movies preferred", "Books preferred", "Ties"]
     sizes = [
         preference_pct[1],   # movies
@@ -106,65 +106,39 @@ def preference_visualization(preference_pct):
     ]
 
     fig, ax = plt.subplots()
-    ax.pie(sizes, labels=labels, autopct="%1.1f%%", startangle=90)
+    ax.pie(
+        sizes,
+        labels=labels,
+        autopct="%1.1f%%",
+        startangle=90,
+        colors=["blue"] * len(sizes)   # all-blue slices
+    )
     ax.axis("equal")
     ax.set_title("Preference: Adapted Movies vs Original Books")
     plt.tight_layout()
-    return fig 
+    return fig
 
-def plot_normalized_stacked_preference(data):
+def plot_bar_preference(preference_pct):
     """
-    Create a 100% stacked bar chart comparing the distribution
-    of book ratings and movie ratings across rating bins (1-5).
+    Create a bar chart comparing the prefered percentage.
     """
+    labels = ["Movies preferred", "Books preferred", "Ties"]
+    sizes = [
+        preference_pct[1],   # movies
+        preference_pct[0],   # books
+        preference_pct[2]    # ties
+    ]
 
-    book_ratings = []
-    movie_ratings = []
+    fig, ax = plt.subplots()
 
-    for row in data:
-        b = row.get("book_rating")
-        m10 = row.get("movie_rating")
-        m5 = m10 / 2 if m10 is not None else None 
-
-        if b is not None and m5 is not None:
-            book_ratings.append(b)
-            movie_ratings.append(m5)
-
-    bins     = [1, 2, 3, 4, 5, 6]             
-    labels   = ["1-2", "2-3", "3-4", "4-5", "5+"]  
-
-    book_counts, _  = np.histogram(book_ratings, bins=bins)
-    movie_counts, _ = np.histogram(movie_ratings, bins=bins)
-
-    totals = book_counts + movie_counts
-    totals_safe = np.where(totals == 0, 1, totals)
-
-    book_pct  = book_counts  / totals_safe
-    movie_pct = movie_counts / totals_safe
-
-    x = np.arange(len(labels))
-
-    fig, ax = plt.subplots(figsize=(9, 6))
-
-    ax.bar(x, book_pct, label="Books", color="skyblue")
-    ax.bar(x, movie_pct, bottom=book_pct, label="Movies", color="steelblue")
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.set_ylim(0, 1)
-    ax.set_ylabel("Percentage of Titles")
-    ax.set_xlabel("Rating Bins (1–5)")
-    ax.set_title("100% Stacked Bar Chart of Book vs Movie Ratings by Rating Bin")
-    ax.legend()
-
-    for i in range(len(x)):
-        ax.text(i, book_pct[i] / 2, f"{book_pct[i]*100:.1f}%", 
-                ha="center", va="center", color="black")
-        ax.text(i, book_pct[i] + movie_pct[i] / 2, f"{movie_pct[i]*100:.1f}%", 
-                ha="center", va="center", color="black")
+    ax.bar(labels, sizes, autopct="%1.1f%%", colors=["blue"] * len(sizes))
+    ax.set_ylabel("Percentage (%)")
+    ax.set_title("Preference: Adapted Movies vs Original Books")
 
     plt.tight_layout()
     return fig
+
+
 
 def prepare_correlation_data(data):
     x_values = []
@@ -203,7 +177,7 @@ def linear_regression(x, y):
         "stderr": result.stderr
     }
 
-def plot_scatter_book_vs_movie_ratings(x, y, r=None, p=None, reg=None):
+def correlation_scatter(x, y, r=None, p=None, reg=None):
     x_arr = np.array(x)
     y_arr = np.array(y)
 
@@ -215,8 +189,8 @@ def plot_scatter_book_vs_movie_ratings(x, y, r=None, p=None, reg=None):
         line_y = reg["slope"] * line_x + reg["intercept"]
         ax.plot(line_x, line_y, "--", linewidth=2, label="Regression line")
 
-    ax.set_xlabel("Book average rating (1–5)")
-    ax.set_ylabel("Movie IMDb rating (scaled to 1–5)")
+    ax.set_xlabel("Book average rating (1-5)")
+    ax.set_ylabel("Movie IMDb rating (scaled to 1-5)")
     ax.set_title("Book Ratings vs Movie Ratings")
     ax.grid(True)
 
@@ -236,7 +210,7 @@ def plot_scatter_book_vs_movie_ratings(x, y, r=None, p=None, reg=None):
     plt.tight_layout()
     return fig
 
-def plot_hexbin_book_vs_movie_ratings(x, y):
+def correlation_hexbin(x, y):
     """
     Hexbin plot for book vs movie ratings.
     Shows density of overlapping points.
