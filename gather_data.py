@@ -6,8 +6,9 @@ import bs4
 
 GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
 OMDB_URL = "https://www.omdbapi.com/"
-OMDB_API_KEY = "51aef340"
+OMDB_API_KEY = "" # Enter API Here
 DB_NAME = "final_project.db"
+minimumcount = 300 # Amount of names we want from the Goodreads
 
 
 def create_connection():
@@ -94,7 +95,7 @@ def clean_goodreads_title(raw_title):
         title = match.group(1)
     return title.strip()
 
-def scrape_adaptations_if_needed(conn, min_count=300):
+def scrape_adaptations_if_needed(conn, min_count=minimumcount):
     """
     Scrape Goodreads list:
     https://www.goodreads.com/list/show/87198.Books_Made_into_Movies_or_TV_Shows
@@ -417,7 +418,7 @@ def main():
     conn = create_connection()
     create_tables(conn)
 
-    scrape_adaptations_if_needed(conn, min_count=300)
+    scrape_adaptations_if_needed(conn, min_count=minimumcount)
 
     load_batch(conn, max_new=25)
 
