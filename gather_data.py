@@ -6,124 +6,105 @@ import bs4
 
 GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
 OMDB_URL = "https://www.omdbapi.com/"
-OMDB_API_KEY = "" # Enter API Here
+OMDB_API_KEY = "51aef340"  # TODO: put your OMDb API key here
 DB_NAME = "final_project.db"
-minimumcount = 300 # Amount of names we want from the Goodreads
+minimumcount = 300  # how many titles to scrape from Goodreads
 
 
 def create_connection():
-    conn = sqlite3.connect(DB_NAME)
-    return conn
+    return sqlite3.connect(DB_NAME)
+
 
 def create_tables(conn):
     """
     Create all tables needed for the project.
-    
-    Adaptations: scraped list of book titles that have film adaptations
-    Books: Google Books data
-    Movies: OMDb data
-    Book_Movie: join table (integer keys book_id + movie_id)
+
+    Titles: scraped list of book titles that have film adaptations
+    Books: Google Books data, linked to Titles via title_id
+    Movies: OMDb data, linked to Titles via title_id
+    FailedTitles: titles that failed either API
     """
     cur = conn.cursor()
 
-    # Scraped titles
+    # Scraped titles (master table)
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS Adaptations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT UNIQUE,
-            source_url TEXT
+        CREATE TABLE IF NOT EXISTS Titles (
+            title_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title    TEXT UNIQUE
         )
     """)
 
-    # Google Books
+    # Google Books – one row per title_id
     cur.execute("""
         CREATE TABLE IF NOT EXISTS Books (
-            book_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            book_title TEXT UNIQUE,
-            authors TEXT,
-            book_rating REAL,
-            ratings_count INTEGER
+            book_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            title_id      INTEGER UNIQUE,
+            book_rating   REAL,
+            ratings_count INTEGER,
+            FOREIGN KEY (title_id) REFERENCES Titles(title_id)
         )
     """)
 
-    # OMDb
+    # OMDb – one row per title_id
     cur.execute("""
         CREATE TABLE IF NOT EXISTS Movies (
-            movie_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            movie_title TEXT UNIQUE,
+            movie_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+            title_id    INTEGER UNIQUE,
             movie_rating REAL,
-            movie_count INTEGER
+            movie_count  INTEGER,
+            FOREIGN KEY (title_id) REFERENCES Titles(title_id)
         )
     """)
 
-    # Join
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS Book_Movie (
-            matching_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            book_id INTEGER,
-            movie_id INTEGER,
-            FOREIGN KEY(book_id) REFERENCES Books(book_id),
-            FOREIGN KEY(movie_id) REFERENCES Movies(movie_id)
-        )
-    """)
-
-    #Failed Titles
+    # Failed titles (store the string title)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS FailedTitles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT UNIQUE
+        failed_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title_id  INTEGER UNIQUE,
+        FOREIGN KEY (title_id) REFERENCES Titles(title_id)
         )
     """)
 
     conn.commit()
 
-def clean_goodreads_title(raw_title):
+
+def clean_goodreads_title(raw_title: str) -> str:
     """
     Clean Goodreads list titles like:
       'The Hunger Games (The Hunger Games, #1)'
     into:
       'The Hunger Games'
-
-    Strategy:
-    - If there is a trailing parenthesis that contains '#', strip it.
-    - Strip extra whitespace.
     """
-    title = raw_title
-
-    match = re.match(r"^(.*?)(\s*\(.*?#\d+.*\))$", title)
+    match = re.match(r"^(.*?)(\s*\(.*?#\d+.*\))$", raw_title)
     if match:
-        title = match.group(1)
-    return title.strip()
+        return match.group(1).strip()
+    return raw_title.strip()
 
-def scrape_adaptations_if_needed(conn, min_count=minimumcount):
+
+def scrape_titles_if_needed(conn, min_count=minimumcount):
     """
     Scrape Goodreads list:
     https://www.goodreads.com/list/show/87198.Books_Made_into_Movies_or_TV_Shows
 
-    Collect at least min_count BOOK TITLES (books that have movies/TV adaptations).
-    Runs ONLY if Adaptations has fewer than min_count rows.
+    Fill the Titles table with at least min_count unique titles.
+    Only runs if Titles currently has fewer than min_count rows.
     """
     cur = conn.cursor()
 
-    cur.execute("SELECT COUNT(*) FROM Adaptations")
+    cur.execute("SELECT COUNT(*) FROM Titles")
     row = cur.fetchone()
-    if row is None:
-        current_count = 0
-    else:
-        current_count = row[0]
+    current_count = row[0] if row else 0
 
     if current_count >= min_count:
-        print(f"Adaptations already has {current_count} rows; skip Goodreads scrape.")
+        print(f"Titles already has {current_count} rows; skipping Goodreads scrape.")
         return
 
     print("Scraping Goodreads list: Books Made into Movies or TV Shows ...")
-
     base_url = "https://www.goodreads.com/list/show/87198.Books_Made_into_Movies_or_TV_Shows"
 
     scraped_titles = []
-
-    # Goodreads list has multiple pages, loop through a few pages until we have enough
     max_pages = 5
+
     for page_num in range(1, max_pages + 1):
         if current_count + len(scraped_titles) >= min_count:
             break
@@ -144,7 +125,7 @@ def scrape_adaptations_if_needed(conn, min_count=minimumcount):
 
         soup = bs4.BeautifulSoup(response.text, "html.parser")
 
-        #Book title is an <a> whose href looks like /book/show/...
+        # book title is an <a> whose href looks like /book/show/...
         all_links = soup.find_all("a", href=re.compile(r"/book/show/"))
 
         for link in all_links:
@@ -152,11 +133,11 @@ def scrape_adaptations_if_needed(conn, min_count=minimumcount):
             if not raw_title:
                 continue
 
-            cleaned_title = clean_goodreads_title(raw_title)
-            if not cleaned_title:
+            cleaned = clean_goodreads_title(raw_title)
+            if not cleaned:
                 continue
 
-            scraped_titles.append(cleaned_title)
+            scraped_titles.append(cleaned)
 
     print(f"Found {len(scraped_titles)} raw book title links on Goodreads.")
 
@@ -164,70 +145,65 @@ def scrape_adaptations_if_needed(conn, min_count=minimumcount):
     for title in scraped_titles:
         if current_count + inserted >= min_count:
             break
-
         try:
             cur.execute(
-                "INSERT OR IGNORE INTO Adaptations (title, source_url) VALUES (?, ?)",
-                (title, base_url)
+                "INSERT OR IGNORE INTO Titles (title) VALUES (?)",
+                (title,)
             )
             if cur.rowcount > 0:
-                inserted = inserted + 1
+                inserted += 1
         except sqlite3.Error:
             continue
 
     conn.commit()
-    print(f"Inserted {inserted} Goodreads book titles into Adaptations.")
+    print(f"Inserted {inserted} new titles into Titles.")
 
 
 def get_pending_titles(conn, limit):
     """
-    Return up to `limit` titles from Adaptations that:
-      - are NOT already in Books
-      - are NOT already in Movies
-      - are NOT marked as failed
+    Return up to `limit` titles from Titles that:
+      - do NOT yet have a row in Books
+      - do NOT yet have a row in Movies
+      - are NOT marked as failed in FailedTitles
+
+    Returns a list of (title_id, title) tuples.
     """
     cur = conn.cursor()
     cur.execute("""
-        SELECT A.title
-        FROM Adaptations AS A
-        LEFT JOIN Books        AS B ON A.title = B.book_title
-        LEFT JOIN Movies       AS M ON A.title = M.movie_title
-        LEFT JOIN FailedTitles AS F ON A.title = F.title
-        WHERE B.book_title IS NULL
-          AND M.movie_title IS NULL
-          AND F.title IS NULL
+        SELECT T.title_id, T.title
+        FROM Titles AS T
+        LEFT JOIN Books        AS B ON T.title_id = B.title_id
+        LEFT JOIN Movies       AS M ON T.title_id = M.title_id
+        LEFT JOIN FailedTitles AS F ON T.title_id = F.title_id
+        WHERE B.title_id IS NULL
+          AND M.title_id IS NULL
+          AND F.title_id IS NULL
         LIMIT ?
     """, (limit,))
-    rows = cur.fetchall()
 
-    titles = []
-    for row in rows:
-        titles.append(row[0])
-    return titles
+    return cur.fetchall()
 
 
 def fetch_google_books_raw(title):
     """
-    Call Google Books API and return the raw JSON (as a Python dict via json.loads).
+    Call Google Books API and return the raw JSON.
     """
-    params = {
-        "q": title,
-        "maxResults": 1
-    }
+    params = {"q": title, "maxResults": 1}
     try:
-        response = requests.get(GOOGLE_BOOKS_URL, params=params, timeout=30)
-        response.raise_for_status()
-        data = json.loads(response.text)
-        return data
+        resp = requests.get(GOOGLE_BOOKS_URL, params=params, timeout=30)
+        resp.raise_for_status()
+        return resp.json()
     except (requests.RequestException, json.JSONDecodeError) as e:
         print(f"Google Books request failed for '{title}': {e}")
         return None
 
+
 def parse_google_books_entry(raw_json):
     """
-    Extract [book_title, authors, book_rating, ratings_count] from Google Books JSON.
+    Extract [book_rating, ratings_count] from Google Books JSON.
+    (We keep the title string in Titles, not here.)
     """
-    if raw_json is None:
+    if not raw_json:
         return None
 
     items = raw_json.get("items")
@@ -239,40 +215,25 @@ def parse_google_books_entry(raw_json):
     if not title:
         return None
 
-    authors_list = volume_info.get("authors")
-    authors = None
-    if isinstance(authors_list, list):
-        authors = ", ".join(authors_list)
-
-    avg_rating = volume_info.get("averageRating")
-    ratings_count = volume_info.get("ratingsCount")
-
-    result = {
-        "book_title": title,
-        "authors": authors,
-        "book_rating": avg_rating,
-        "ratings_count": ratings_count
+    return {
+        "book_rating":   volume_info.get("averageRating"),
+        "ratings_count": volume_info.get("ratingsCount")
     }
-    return result
 
 
 def fetch_omdb_raw(title):
     """
-    Call OMDb API and return raw JSON (as Python dict via json.loads).
+    Call OMDb API and return raw JSON.
     """
-    if OMDB_API_KEY == "YOUR_OMDB_API_KEY_HERE":
+    if not OMDB_API_KEY:
         print("Set OMDB_API_KEY in gather_data.py before running OMDb requests.")
         return None
 
-    params = {
-        "t": title,
-        "apikey": OMDB_API_KEY
-    }
+    params = {"t": title, "apikey": OMDB_API_KEY}
     try:
         resp = requests.get(OMDB_URL, params=params, timeout=30)
         resp.raise_for_status()
-        data = json.loads(resp.text)
-        return data
+        return resp.json()
     except (requests.RequestException, json.JSONDecodeError) as e:
         print(f"OMDb request failed for '{title}': {e}")
         return None
@@ -280,20 +241,16 @@ def fetch_omdb_raw(title):
 
 def parse_omdb_entry(raw_json):
     """
-    Extract [movie_title, movie_rating, movie_count] from OMDb JSON.
+    Extract [movie_rating, movie_count] from OMDb JSON.
     """
-    if raw_json is None:
+    if not raw_json or raw_json.get("Response") != "True":
         return None
-    if raw_json.get("Response") != "True":
-        return None
-
-    title = raw_json.get("Title")
 
     imdb_rating_val = None
-    imdb_rating_str = raw_json.get("imdbRating")
-    if imdb_rating_str and imdb_rating_str != "N/A":
+    rating_str = raw_json.get("imdbRating")
+    if rating_str and rating_str != "N/A":
         try:
-            imdb_rating_val = float(imdb_rating_str)
+            imdb_rating_val = float(rating_str)
         except ValueError:
             imdb_rating_val = None
 
@@ -301,67 +258,43 @@ def parse_omdb_entry(raw_json):
     votes_str = raw_json.get("imdbVotes")
     if votes_str and votes_str != "N/A":
         try:
-            cleaned = votes_str.replace(",", "")
-            imdb_votes_val = int(cleaned)
+            imdb_votes_val = int(votes_str.replace(",", ""))
         except ValueError:
             imdb_votes_val = None
 
-    result = {
-        "movie_title": title,
+    return {
         "movie_rating": imdb_rating_val,
-        "movie_count": imdb_votes_val
+        "movie_count":  imdb_votes_val
     }
-    return result
 
-def insert_adaptation(conn, book_data, movie_data):
+
+def insert_adaptation(conn, title_id, book_data, movie_data):
     """
     Insert one book+movie pair into:
-    - Books
-    - Movies
-    - Book_Movie  (link table using integer keys)
+    - Books (linked by title_id)
+    - Movies (linked by title_id)
     """
     cur = conn.cursor()
 
-    # Insert or ignore the book
+    # Insert or ignore the book row for this title_id
     cur.execute("""
-        INSERT OR IGNORE INTO Books (book_title, authors, book_rating, ratings_count)
-        VALUES (?, ?, ?, ?)
+        INSERT OR IGNORE INTO Books (title_id, book_rating, ratings_count)
+        VALUES (?, ?, ?)
     """, (
-        book_data.get("book_title"),
-        book_data.get("authors"),
+        title_id,
         book_data.get("book_rating"),
         book_data.get("ratings_count")
     ))
 
-    # Get book_id
-    cur.execute("SELECT book_id FROM Books WHERE book_title = ?", (book_data.get("book_title"),))
-    row = cur.fetchone()
-    if row is None:
-        return
-    book_id = row[0]
-
-    # Insert or ignore the movie
+    # Insert or ignore the movie row for this title_id
     cur.execute("""
-        INSERT OR IGNORE INTO Movies (movie_title, movie_rating, movie_count)
+        INSERT OR IGNORE INTO Movies (title_id, movie_rating, movie_count)
         VALUES (?, ?, ?)
     """, (
-        movie_data.get("movie_title"),
+        title_id,
         movie_data.get("movie_rating"),
         movie_data.get("movie_count")
     ))
-
-    # Get movie_id
-    cur.execute("SELECT movie_id FROM Movies WHERE movie_title = ?", (movie_data.get("movie_title"),))
-    row = cur.fetchone()
-    if row is None:
-        return
-    movie_id = row[0]
-
-    # Insert into join table
-    cur.execute("""
-        INSERT OR IGNORE INTO Book_Movie (book_id, movie_id)
-        VALUES (?, ?)
-    """, (book_id, movie_id))
 
     conn.commit()
 
@@ -371,44 +304,46 @@ def load_batch(conn, max_new=25):
     Load up to max_new NEW adaptations in one run.
     This enforces the 25-items-per-run rule from the project spec.
     """
-    # Grab more than max_new candidate titles so if some fails
-    candidate_titles = get_pending_titles(conn, max_new * 2)
+    # Grab more than max_new candidate titles so if some fail, we still can hit max_new
+    candidate_rows = get_pending_titles(conn, max_new * 2)
 
     inserted = 0
-    for scraped_title in candidate_titles:
+    for title_id, title in candidate_rows:
         if inserted >= max_new:
             break
 
-        print(f"Processing '{scraped_title}'...")
+        print(f"Processing '{title}' (title_id={title_id}) ...")
 
         # Google Books
-        gb_raw = fetch_google_books_raw(scraped_title)
+        gb_raw = fetch_google_books_raw(title)
         gb_data = parse_google_books_entry(gb_raw)
         if gb_data is None:
             print("  Skipping: no valid Google Books data.")
             cur = conn.cursor()
-            cur.execute("INSERT OR IGNORE INTO FailedTitles (title) VALUES (?)",
-                        (scraped_title,))
+            cur.execute(
+                "INSERT OR IGNORE INTO FailedTitles (title_id) VALUES (?)",
+                (title_id,)
+            )
+
             conn.commit()
             continue
 
-        # Override title to keep consistent with scraped Goodreads title
-        gb_data["book_title"] = scraped_title
-
         # OMDb
-        omdb_raw = fetch_omdb_raw(scraped_title)
+        omdb_raw = fetch_omdb_raw(title)
         omdb_data = parse_omdb_entry(omdb_raw)
         if omdb_data is None:
             print("  Skipping: no valid OMDb data.")
             cur = conn.cursor()
-            cur.execute("INSERT OR IGNORE INTO FailedTitles (title) VALUES (?)",
-                        (scraped_title,))
+            cur.execute(
+                "INSERT OR IGNORE INTO FailedTitles (title_id) VALUES (?)",
+                (title_id,)
+            )
+
             conn.commit()
             continue
 
-
-        insert_adaptation(conn, gb_data, omdb_data)
-        inserted = inserted + 1
+        insert_adaptation(conn, title_id, gb_data, omdb_data)
+        inserted += 1
         print(f"  Inserted adaptation #{inserted} this run.")
 
     print(f"Finished batch: {inserted} new adaptations inserted (max {max_new}).")
@@ -418,8 +353,7 @@ def main():
     conn = create_connection()
     create_tables(conn)
 
-    scrape_adaptations_if_needed(conn, min_count=minimumcount)
-
+    scrape_titles_if_needed(conn, min_count=minimumcount)
     load_batch(conn, max_new=25)
 
     conn.close()
