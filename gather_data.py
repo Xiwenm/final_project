@@ -6,7 +6,7 @@ import bs4
 
 GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
 OMDB_URL = "https://www.omdbapi.com/"
-OMDB_API_KEY = "d4a57588"  # TODO: put your OMDb API key here
+OMDB_API_KEY = "d4a57588" # Change here
 DB_NAME = "final_project.db"
 minimumcount = 300  # how many titles to scrape from Goodreads
 
