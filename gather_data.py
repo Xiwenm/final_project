@@ -26,7 +26,7 @@ def create_tables(conn):
     """
     cur = conn.cursor()
 
-    # Scraped titles (master table)
+    # Scraped titles
     cur.execute("""
         CREATE TABLE IF NOT EXISTS Titles (
             title_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,7 +34,7 @@ def create_tables(conn):
         )
     """)
 
-    # Google Books – one row per title_id
+    # Google Books
     cur.execute("""
         CREATE TABLE IF NOT EXISTS Books (
             book_id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +45,7 @@ def create_tables(conn):
         )
     """)
 
-    # OMDb – one row per title_id
+    # OMDb
     cur.execute("""
         CREATE TABLE IF NOT EXISTS Movies (
             movie_id    INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,7 +56,7 @@ def create_tables(conn):
         )
     """)
 
-    # Failed titles (store the string title)
+    # Failed titles
     cur.execute("""
         CREATE TABLE IF NOT EXISTS FailedTitles (
         failed_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -276,7 +276,7 @@ def insert_adaptation(conn, title_id, book_data, movie_data):
     """
     cur = conn.cursor()
 
-    # Insert or ignore the book row for this title_id
+
     cur.execute("""
         INSERT OR IGNORE INTO Books (title_id, book_rating, ratings_count)
         VALUES (?, ?, ?)
@@ -286,7 +286,7 @@ def insert_adaptation(conn, title_id, book_data, movie_data):
         book_data.get("ratings_count")
     ))
 
-    # Insert or ignore the movie row for this title_id
+
     cur.execute("""
         INSERT OR IGNORE INTO Movies (title_id, movie_rating, movie_count)
         VALUES (?, ?, ?)
