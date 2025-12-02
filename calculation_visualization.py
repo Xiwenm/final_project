@@ -4,15 +4,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-
 DB_NAME = "final_project.db"
 
 def create_connection():
+    """
+    Connect the python file to the database
+    """
     return sqlite3.connect(DB_NAME)
 
 def fetch_joined_data(conn):
     """
-    Get joined rows: one per book-movie pair.
+    Get joined data: one per book-movie pair
+    Join by on title id
+    Input: Database connection
+    Output: Joined dictionary
     """
     cur = conn.cursor()
     cur.execute("""
@@ -44,6 +49,11 @@ def fetch_joined_data(conn):
 
 
 def filter_data(data, min_book_count=0, min_movie_count=0):
+    """
+    Filtered the data by setting minimum threshold for calculation
+    Input: data(dict), min book count(int), min movie count(int)
+    Output: filtered data (dict)
+    """
     filtered = []
     for row in data:
         brc = row["book_count"]
@@ -59,13 +69,23 @@ def filter_data(data, min_book_count=0, min_movie_count=0):
 
 
 def convert_movie_rating(movie_rating_10):
-    """Convert IMDb rating 1-10 to 1-5."""
+    """
+    Convert IMDb rating 1-10 to 1-5.
+    Input: movie rating in scale of 10 (int)
+    Output: movie rating in scale of 5 (int)
+    """
+    # Only convert the exsited movie ratings
     if movie_rating_10 is None:
         return None
     return movie_rating_10 / 2.0
 
 
 def compute_preference_counts(data):
+    """
+    Compute the count of preferences
+    Input: filtered data (dict)
+    Output: [books_better, movies_better, ties, total] (list of int)
+    """
     books_better = 0
     movies_better = 0
     ties = 0
@@ -76,6 +96,7 @@ def compute_preference_counts(data):
         movie_rating_10 = row.get("movie_rating")  
         movie_rating_5 = convert_movie_rating(movie_rating_10)
 
+        # skip null values 
         if book_rating is None or movie_rating_5 is None:
             continue
 
@@ -90,8 +111,14 @@ def compute_preference_counts(data):
     return books_better, movies_better, ties, total
 
 def preference_percentage(preferece_counts):
+    """
+    Convert the preference count to percentage
+    Input: preference_counts (list of int)
+    Output: books_better_pct, movies_better_pct, ties_pct (list of float)
+    """
     books_better, movies_better, ties, total = preferece_counts
 
+    # prevent null data
     if total == 0:
         return (0, 0, 0)
 
@@ -101,6 +128,11 @@ def preference_percentage(preferece_counts):
     return books_better_pct, movies_better_pct, ties_pct
 
 def preference_pie(preference_pct):
+    """
+    Creat a pie chart comparing preference percentages
+    Input: preference_pct (list of float)
+    Output: data visualization (png)
+    """
     labels = ["Movies preferred", "Books preferred", "Ties"]
     sizes = [
         preference_pct[1],   # movies
@@ -127,6 +159,8 @@ def preference_pie(preference_pct):
 def preference_bar(preference_pct):
     """
     Create a bar chart comparing preference percentages.
+    Input: preference_pct (list of float)
+    Output: data visualization (png)
     """
     labels = ["Movies preferred", "Books preferred", "Ties"]
     sizes_pct = [
@@ -160,6 +194,12 @@ def preference_bar(preference_pct):
 
 
 def prepare_correlation_data(data):
+    """
+    Preparing data for further statistical computation.
+    Convert data into x and y values [array]
+    Input: filtered data (dict)
+    Output: x (array), y (array)
+    """
     x_values = []
     y_values = []
 
@@ -168,6 +208,7 @@ def prepare_correlation_data(data):
         movie_rating_10 = row.get("movie_rating")
         movie_rating_5 = convert_movie_rating(movie_rating_10)
 
+        # prevent null values
         if book_rating is None or movie_rating_5 is None:
             continue
 
@@ -177,6 +218,11 @@ def prepare_correlation_data(data):
     return x_values, y_values
 
 def pearson_correlation(x, y):
+    """
+    Calculate the pearson correlation using numpy library
+    Input: x (array), y (array)
+    Output: r (numpy object),p (numpy object)
+    """
     if len(x) != len(y) or len(x) < 3:
         return None
 
@@ -184,6 +230,11 @@ def pearson_correlation(x, y):
     return r, p
 
 def linear_regression(x, y):
+    """
+    Compute the linear regression using numpy model
+    Input: x (array), y (array)
+    Output: result (dict)
+    """
     if len(x) != len(y) or len(x) < 3:
         return None
 
@@ -197,6 +248,11 @@ def linear_regression(x, y):
     }
 
 def correlation_scatter(x, y, r=None, p=None, reg=None):
+    """
+    Create scatter plot for linear regression visualization
+    Input: x (array), y (array), r (float), p (float), reg (float)
+    Output: data visualization (png)
+    """
     x_arr = np.array(x)
     y_arr = np.array(y)
 
@@ -233,6 +289,8 @@ def correlation_hexbin(x, y):
     """
     Hexbin plot for book vs movie ratings.
     Shows density of overlapping points.
+    Input: x (array), y (array)
+    Output: data visualization (png)
     """
     x_arr = np.array(x, dtype=float)
     y_arr = np.array(y, dtype=float)
@@ -266,6 +324,11 @@ def write_summary_file(
     regression_result=None):
     lines = []
     lines.append("=== Analysis Summary ===\n")
+    """
+    Output a txt file to summarize the calculation results
+    Input: filename (str), preference_counts (list of int), preference_pct(list of int), correlation_result(list of numpy object), regression_result(list of float)
+    Output: text file
+    """
 
     if preference_counts is not None:
         books_better, movies_better, ties, total = preference_counts
