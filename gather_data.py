@@ -87,7 +87,7 @@ def scrape_titles_if_needed(conn, max_count=maximumcount):
     https://www.goodreads.com/list/show/87198.Books_Made_into_Movies_or_TV_Shows
 
     Each run:
-      - Only runs if Titles has fewer than min_count rows.
+      - Only runs if Titles has fewer than max_count rows.
       - Scrapes pages one by one.
       - Inserts at most 25 NEW titles into Titles, then stops.
     """
