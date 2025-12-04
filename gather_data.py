@@ -8,7 +8,7 @@ GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
 OMDB_URL = "https://www.omdbapi.com/"
 OMDB_API_KEY = "d4a57588" # Change here
 DB_NAME = "final_project.db"
-minimumcount = 300  # how many titles to scrape from Goodreads
+maximumcount = 300 
 
 
 def create_connection():
@@ -29,7 +29,7 @@ def create_tables(conn):
     # Scraped titles
     cur.execute("""
         CREATE TABLE IF NOT EXISTS Titles (
-            title_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title_id INTEGER PRIMARY KEY,
             title    TEXT UNIQUE
         )
     """)
@@ -81,13 +81,15 @@ def clean_goodreads_title(raw_title: str) -> str:
     return raw_title.strip()
 
 
-def scrape_titles_if_needed(conn, min_count=minimumcount):
+def scrape_titles_if_needed(conn, max_count=maximumcount):
     """
     Scrape Goodreads list:
     https://www.goodreads.com/list/show/87198.Books_Made_into_Movies_or_TV_Shows
 
-    Fill the Titles table with at least min_count unique titles.
-    Only runs if Titles currently has fewer than min_count rows.
+    Each run:
+      - Only runs if Titles has fewer than min_count rows.
+      - Scrapes pages one by one.
+      - Inserts at most 25 NEW titles into Titles, then stops.
     """
     cur = conn.cursor()
 
@@ -95,18 +97,20 @@ def scrape_titles_if_needed(conn, min_count=minimumcount):
     row = cur.fetchone()
     current_count = row[0] if row else 0
 
-    if current_count >= min_count:
+    if current_count >= max_count:
         print(f"Titles already has {current_count} rows; skipping Goodreads scrape.")
         return
 
     print("Scraping Goodreads list: Books Made into Movies or TV Shows ...")
     base_url = "https://www.goodreads.com/list/show/87198.Books_Made_into_Movies_or_TV_Shows"
 
-    scraped_titles = []
-    max_pages = 5
+    max_pages = 5          
+    max_new_per_run = 25 
+
+    inserted = 0
 
     for page_num in range(1, max_pages + 1):
-        if current_count + len(scraped_titles) >= min_count:
+        if inserted >= max_new_per_run or (current_count + inserted) >= max_count:
             break
 
         page_url = f"{base_url}?page={page_num}"
@@ -129,6 +133,9 @@ def scrape_titles_if_needed(conn, min_count=minimumcount):
         all_links = soup.find_all("a", href=re.compile(r"/book/show/"))
 
         for link in all_links:
+            if inserted >= max_new_per_run or (current_count + inserted) >= max_count:
+                break  
+
             raw_title = link.get_text(strip=True)
             if not raw_title:
                 continue
@@ -137,26 +144,19 @@ def scrape_titles_if_needed(conn, min_count=minimumcount):
             if not cleaned:
                 continue
 
-            scraped_titles.append(cleaned)
+            try:
+                cur.execute(
+                    "INSERT OR IGNORE INTO Titles (title) VALUES (?)",
+                    (cleaned,)
+                )
 
-    print(f"Found {len(scraped_titles)} raw book title links on Goodreads.")
-
-    inserted = 0
-    for title in scraped_titles:
-        if current_count + inserted >= min_count:
-            break
-        try:
-            cur.execute(
-                "INSERT OR IGNORE INTO Titles (title) VALUES (?)",
-                (title,)
-            )
-            if cur.rowcount > 0:
-                inserted += 1
-        except sqlite3.Error:
-            continue
+                if cur.rowcount > 0:
+                    inserted += 1
+            except sqlite3.Error:
+                continue
 
     conn.commit()
-    print(f"Inserted {inserted} new titles into Titles.")
+    print(f"Inserted {inserted} new titles into Titles this run.")
 
 
 def get_pending_titles(conn, limit):
@@ -352,7 +352,7 @@ def main():
     conn = create_connection()
     create_tables(conn)
 
-    scrape_titles_if_needed(conn, min_count=minimumcount)
+    scrape_titles_if_needed(conn, max_count=maximumcount)
     load_batch(conn, max_new=25)
 
     conn.close()
